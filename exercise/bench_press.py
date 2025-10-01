@@ -6,23 +6,6 @@ import time
 
 def run_bench_press(num_sets):
     st.subheader("Bench Press Counter 🏋️‍♀️ (Form Checker)")
-    
-    # --- Session State for Stop ---
-    if 'bench_stop' not in st.session_state:
-        st.session_state.bench_stop = False
-    if 'bench_reset' not in st.session_state:
-        st.session_state.bench_reset = False
-
-    # --- Stop Button ---
-    stop_btn = st.button("🛑 Stop")
-    reset_btn = st.button("🔄 Reset")
-
-    if stop_btn:
-        st.session_state.bench_stop = True
-
-    if reset_btn:
-        st.session_state.bench_reset = True
-        st.experimental_rerun()
 
     FRAME_WINDOW = st.image([])
     progress_bar = st.progress(0)
@@ -35,12 +18,17 @@ def run_bench_press(num_sets):
     down = False
     up = False
     initial_shoulder_y = None
-    set_goal_reps = 10
+    set_goal_reps = 10  # reps per set
 
-    while cap.isOpened() and not st.session_state.bench_stop:
+    while cap.isOpened():
+        # --- If user pressed End Exercise (sidebar button) ---
+        if st.session_state.get("end_exercise", False):
+            st.info("Workout Stopped 🚫")
+            break
+
         ret, frame = cap.read()
         if not ret:
-            st.warning('Camera error.')
+            st.warning("Camera error.")
             break
 
         frame = cv2.flip(frame, 1)
@@ -75,8 +63,7 @@ def run_bench_press(num_sets):
                 feedback = "Bring bar lower ❗"
 
             annotated_frame = result.plot()
-
-            cv2.putText(annotated_frame, f'Reps: {reps}', (30, 50),
+            cv2.putText(annotated_frame, f"Reps: {reps}", (30, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
             cv2.putText(annotated_frame, feedback, (30, 100),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
@@ -84,6 +71,7 @@ def run_bench_press(num_sets):
         annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
         FRAME_WINDOW.image(annotated_frame)
 
+        # --- Set Complete ---
         if reps >= set_goal_reps:
             sets_done += 1
             st.success(f"Set {sets_done} Completed! 🎯")
@@ -94,12 +82,8 @@ def run_bench_press(num_sets):
             if sets_done >= num_sets:
                 st.balloons()
                 st.success("Bench Press Workout Completed! ✅")
-                cap.release()
                 break
 
     cap.release()
     FRAME_WINDOW.empty()
     progress_bar.empty()
-
-    if st.session_state.bench_stop:
-        st.info("Workout Stopped 🚫")

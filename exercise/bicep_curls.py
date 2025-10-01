@@ -23,24 +23,9 @@ def play_hold_then_down():
     time.sleep(2)
     play_sound(down_sound)
 
+# --- Bicep Curls Function ---
 def run_bicep_curls(num_sets):
     st.subheader("Bicep Curls Counter 💪 (Form Checker)")
-
-    if "bicep_stop" not in st.session_state:
-        st.session_state.bicep_stop = False
-    if "bicep_reset" not in st.session_state:
-        st.session_state.bicep_reset = False
-    if "last_warning_time" not in st.session_state:
-        st.session_state.last_warning_time = 0
-
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("🛑 Stop"):
-            st.session_state.bicep_stop = True
-    with col2:
-        if st.button("🔄 Reset"):
-            st.session_state.bicep_reset = True
-            st.experimental_rerun()
 
     FRAME_WINDOW = st.image([])
     progress_bar = st.progress(0)
@@ -52,18 +37,16 @@ def run_bicep_curls(num_sets):
     sets_done = 0
     down = False
     up = False
-    set_goal_reps = 10
+    set_goal_reps = 10  # reps per set
+
+    last_warning_time = 0
 
     def get_elbow_angle(keypoints, side='left'):
         try:
             if side == 'left':
-                shoulder = keypoints[5]
-                elbow = keypoints[7]
-                wrist = keypoints[9]
+                shoulder, elbow, wrist = keypoints[5], keypoints[7], keypoints[9]
             else:
-                shoulder = keypoints[6]
-                elbow = keypoints[8]
-                wrist = keypoints[10]
+                shoulder, elbow, wrist = keypoints[6], keypoints[8], keypoints[10]
 
             a = np.array(shoulder)
             b = np.array(elbow)
@@ -71,17 +54,21 @@ def run_bicep_curls(num_sets):
 
             ba = a - b
             bc = c - b
-
             cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
             angle = np.arccos(np.clip(cosine_angle, -1.0, 1.0))
             return np.degrees(angle)
         except:
             return None
 
-    while cap.isOpened() and not st.session_state.bicep_stop:
+    while cap.isOpened():
+        # --- Check if user pressed End Exercise (sidebar) ---
+        if st.session_state.get("end_exercise", False):
+            st.info("Exercise stopped 🚫")
+            break
+
         ret, frame = cap.read()
         if not ret:
-            st.warning('Camera not available.')
+            st.warning("Camera not available.")
             break
 
         frame = cv2.flip(frame, 1)
@@ -92,7 +79,6 @@ def run_bicep_curls(num_sets):
                 continue
 
             keypoints = result.keypoints.xy[0].cpu().numpy()
-
             left_angle = get_elbow_angle(keypoints, 'left')
             right_angle = get_elbow_angle(keypoints, 'right')
 
@@ -100,24 +86,18 @@ def run_bicep_curls(num_sets):
                 continue
 
             avg_angle = (left_angle + right_angle) / 2.0
-            progress = (avg_angle - 30) / (150 - 30)
-            progress = np.clip(progress, 0, 1)
-
-            if not np.isnan(progress) and 0 <= progress <= 1:
-                progress_bar.progress(float(1 - progress))
-            else:
-                progress_bar.progress(0.0)
+            progress = np.clip((avg_angle - 30) / (150 - 30), 0, 1)
+            progress_bar.progress(float(1 - progress) if 0 <= progress <= 1 else 0.0)
 
             feedback = ""
 
             if avg_angle < 50:
                 down = True
-                feedback = "Good Curl "
+                feedback = "Good Curl ✅"
                 if up:
                     reps += 1
                     up = False
                     play_sound(correct_sound)
-                    # After a correct rep, say "hold" then "down"
                     threading.Thread(target=play_hold_then_down, daemon=True).start()
 
             elif avg_angle > 140:
@@ -126,13 +106,12 @@ def run_bicep_curls(num_sets):
                     down = False
                 feedback = "Extend your arms fully! ❗"
                 current_time = time.time()
-                if current_time - st.session_state.last_warning_time > 4:
+                if current_time - last_warning_time > 4:
                     threading.Thread(target=play_hold_then_down, daemon=True).start()
-                    st.session_state.last_warning_time = current_time
+                    last_warning_time = current_time
 
             annotated_frame = result.plot()
-
-            cv2.putText(annotated_frame, f'Reps: {reps}', (30, 50),
+            cv2.putText(annotated_frame, f"Reps: {reps}", (30, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
             cv2.putText(annotated_frame, feedback, (30, 100),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
@@ -149,13 +128,9 @@ def run_bicep_curls(num_sets):
 
             if sets_done >= num_sets:
                 st.balloons()
-                st.success("Workout Finished! 🎯")
-                cap.release()
+                st.success("Bicep Curls Workout Completed! 🎯")
                 break
 
     cap.release()
     FRAME_WINDOW.empty()
     progress_bar.empty()
-
-    if st.session_state.bicep_stop:
-        st.info("Exercise stopped by user 🚫")

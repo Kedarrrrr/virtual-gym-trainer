@@ -1,20 +1,25 @@
-body building
+import streamlit as st
+from exercise import pushups, squats, bicep_curls, bench_press
 
-panner- 150g per week= 220
-chicken- 200g per week= 200
-smoothie- 800 
-soya chunks- 100
-suppliments- 900/ 100=vit c, 200 omega, b12- 50
-gym- 400
+# --- Title ---
+st.title("🏋️‍♂️ AI Fitness Trainer - Repetition Counter & Form Checker")
 
+# --- Sidebar Navigation ---
+exercise_list = ["Push-Ups", "Squats", "Bicep Curls", "Bench Press"]
+choice = st.sidebar.selectbox("Select Exercise", exercise_list)
 
-skin care
+# --- Ask for Sets ---
+num_sets = st.sidebar.number_input('Number of Sets:', min_value=1, max_value=10, step=1)
 
-cleanser- 150
-sunscreen- 150
-moisturizer- 150
-serum- 300
+start = st.button("Start Workout 🚀")
 
-Confirm your location so we can connect you to the fastest server in your region. This helps prevent lag.
-
-You may enter your location below to connect now.
+# --- Routing Based on Choice ---
+if start:
+    if choice == "Push-Ups":
+        pushups.run_pushup(num_sets)
+    elif choice == "Squats":
+        squats.run_squats(num_sets)
+    elif choice == "Bicep Curls":
+        bicep_curls.run_bicep_curls(num_sets)
+    elif choice == "Bench Press":
+        bench_press.run_bench_press(num_sets)

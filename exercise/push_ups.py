@@ -7,22 +7,6 @@ import time
 def run_pushup(num_sets):
     st.subheader("Push-Ups Counter 💪 (Form Checker)")
 
-    # --- Session State Flags ---
-    if "pushup_stop" not in st.session_state:
-        st.session_state.pushup_stop = False
-    if "pushup_reset" not in st.session_state:
-        st.session_state.pushup_reset = False
-
-    # --- Control Buttons ---
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        if st.button("🛑 Stop"):
-            st.session_state.pushup_stop = True
-    with col2:
-        if st.button("🔄 Reset"):
-            st.session_state.pushup_reset = True
-            st.experimental_rerun()
-
     FRAME_WINDOW = st.image([])
     progress_bar = st.progress(0)
 
@@ -34,12 +18,17 @@ def run_pushup(num_sets):
     down = False
     up = False
     initial_shoulder_y = None
-    set_goal_reps = 10
+    set_goal_reps = 10  # reps per set
 
-    while sets_done < num_sets and not st.session_state.pushup_stop:
+    while sets_done < num_sets:
+        # --- If user pressed End Exercise (sidebar button) ---
+        if st.session_state.get("end_exercise", False):
+            st.info("Workout Stopped 🚫")
+            break
+
         ret, frame = cap.read()
         if not ret:
-            st.warning('Camera not found.')
+            st.warning("Camera not found.")
             break
 
         frame = cv2.flip(frame, 1)
@@ -75,22 +64,17 @@ def run_pushup(num_sets):
                     feedback = "Go Lower ❗"
 
                 annotated_frame = result.plot()
-
-                cv2.putText(annotated_frame, f'Reps: {reps}', (30, 50),
+                cv2.putText(annotated_frame, f"Reps: {reps}", (30, 50),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
                 cv2.putText(annotated_frame, feedback, (30, 100),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
             else:
-                annotated_frame = frame.copy()  # If no keypoints, just show original frame
+                annotated_frame = frame.copy()  # fallback if no keypoints
 
         annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
         FRAME_WINDOW.image(annotated_frame)
 
-        if st.session_state.pushup_stop:
-            st.warning("Exercise stopped by user 🚫")
-            cap.release()
-            return
-
+        # --- Set Complete ---
         if reps >= set_goal_reps:
             sets_done += 1
             st.success(f"Set {sets_done} Completed! 🎉")
@@ -99,8 +83,9 @@ def run_pushup(num_sets):
 
             if sets_done >= num_sets:
                 st.balloons()
-                st.success("Workout Finished! 🎯")
-                cap.release()
+                st.success("Push-Ups Workout Completed! 🎯")
                 break
 
     cap.release()
+    FRAME_WINDOW.empty()
+    progress_bar.empty()
