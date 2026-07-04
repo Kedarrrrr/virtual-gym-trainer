@@ -136,6 +136,6 @@ Injury prevention during unsupervised training
 
 Form-focused strength and fitness routines
 
-Author
+Author-
 
-Kedar Gaikwad
+Kedarraje Gaikwad
